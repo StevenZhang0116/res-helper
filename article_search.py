@@ -111,7 +111,8 @@ def open_pdf_file(file_path):
 if __name__ == "__main__":
     # change to the folder 
     rootfolder = "../paper/"
-    keystring = ['Towards deep learning with segregated dendrites']
+    # keywords list you want to search on
+    keystring = ['Decoupled Neural Interfaces using Synthetic Gradients']
     cutthreshold = 500
 
     resultlist = article_search(rootfolder, keystring, cutthreshold)
