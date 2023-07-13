@@ -112,12 +112,12 @@ if __name__ == "__main__":
     # change to the folder 
     rootfolder = "../paper/"
     # keywords list you want to search on
-    keystring = ['Decoupled Neural Interfaces using Synthetic Gradients']
+    keystring = ['black box']
     cutthreshold = 500
 
     resultlist = article_search(rootfolder, keystring, cutthreshold)
     print(resultlist)
     openindex = input(f"Do you want to open these {len(resultlist)} files? ")
-    if openindex == 1:
+    if int(openindex) == 1:
         for i in resultlist:
             open_pdf_file(i)
