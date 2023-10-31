@@ -198,19 +198,24 @@ if __name__ == "__main__":
     keystring = ['siam']
     cutthreshold = 500
 
-    ## keyword search demo
-    # keywordresult = article_search(rootfolder, keystring, cutthreshold)
+    index = 1 
+    if index == 0:
+        keywordresult = article_search(rootfolder, keystring, cutthreshold)
+        resultlist = keywordresult
 
-    ## duplication search demo
-    duplicateresult = duplicate_search(rootfolder, cutthreshold)
+        openindex = input(f"Do you want to open these {len(resultlist)} files? ")
+        if int(openindex) == 1:
+            for i in resultlist:
+                open_pdf_file(i)
 
-    resultlist = duplicateresult
-    print(resultlist)
+    elif index == 1:
+        ## duplication search demo
+        duplicateresult = duplicate_search(rootfolder, cutthreshold)
 
-    openindex = input(f"Do you want to open these {len(resultlist)} files? ")
-    if int(openindex) == 1:
-        for i in resultlist:
-            open_pdf_file(i)
+        resultlist = duplicateresult
+        print(resultlist)
+
+    
 
     # a = 'review\n\nspecial  issue:  hippocampus  and  memory\n\na  neohebbian  framework  for  episodic\nmemory;  role  of  dopamine-dependent\nlate  ltp\njohn  lisman1,  anthony  a.  grace2 and  emrah  duzel3,4,5\n\n1 department  of  biology  and  volen  center  for  complex  systems,  brandeis  university,  waltham,  ma  02454-9110,  usa\n2 departments  of  neuroscience,  psychiatry  and  psychology,  university  of  pittsburgh,  pittsburgh,  pa  15260,  usa\n3 institute  of  cognitive  neuroscience,  university '
     # a.replace('\n', ' ')
