@@ -25,12 +25,15 @@ import platform
 import string
 import nltk
 from sklearn.feature_extraction.text import TfidfVectorizer
+import matplotlib.pyplot as plt
+import tensorflow_hub as hub
+import concurrent.futures
 
-# nltk.download('punkt')
 
 stemmer = nltk.stem.porter.PorterStemmer()
 remove_punctuation_map = dict((ord(char), None) for char in string.punctuation)
 
+# inspired from: https://stackoverflow.com/questions/8897593/how-to-compute-the-similarity-between-two-text-documents
 def stem_tokens(tokens):
     return [stemmer.stem(item) for item in tokens]
 
@@ -42,7 +45,6 @@ vectorizer = TfidfVectorizer(tokenizer=normalize, stop_words='english')
 def cosine_sim(text1, text2):
     tfidf = vectorizer.fit_transform([text1, text2])
     return ((tfidf * tfidf.T).A)[0,1]
-
 
 
 def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
@@ -120,6 +122,7 @@ def duplicate_search(rootfolder, cutthreshold):
             arr.append(os.path.join(root, filename))
 
     textreslst = []
+    namelst = []
     with Pool() as pool: 
         textresults = []
         for xpath in arr:
@@ -127,6 +130,7 @@ def duplicate_search(rootfolder, cutthreshold):
             textresults.append(result)
 
         for result in textresults:
+            namelst.extend(result.get()[0])
             textreslst.extend(result.get()[1])
 
     print("== Abstract Texts are generated ==")
@@ -136,12 +140,66 @@ def duplicate_search(rootfolder, cutthreshold):
     # Remove tuples with the same elements and filter out tuples where x and y are equal
     unique_tuples_list = [t for t in unique_tuples_set if t[0] != t[1]]
 
+    simpaperlst = []
+    cnt = 1
     for thetuple in unique_tuples_list:
-        i, j = thetuple[0], thetuple[1]
-        text1, text2 = textreslst[i], textreslst[j]
-        similarity = cosine_sim(text1, text2)
-        print(similarity)
+        try: 
+            if cnt % 10000 == 0:
+                print(f"{cnt}/{len(unique_tuples_list)}")
 
+            i, j = thetuple[0], thetuple[1]
+            text1, text2 = textreslst[i], textreslst[j]
+
+            # cosine angle approach
+            similarity1 = cosine_sim(text1, text2)
+            if similarity1 > 0.99:
+                simpaperlst.append([namelst[i], namelst[j]])
+            cnt += 1
+
+        except Exception as e:
+            print(e)
+
+    print("== Duplication Test is finished ==")
+
+    return simpaperlst
+
+def merge_tuple(input):
+    merged_tuples = {}
+
+    for thetuple in input:
+        sorted_tuple = tuple(sorted(thetuple))  # Sort the tuple to handle (x, y) and (y, x) cases
+        if sorted_tuple in merged_tuples:
+            merged_tuples[sorted_tuple] += thetuple
+        else:
+            merged_tuples[sorted_tuple] = thetuple
+
+    merged_tuple_list = list(merged_tuples.values())
+    return merged_tuple_list
+
+
+def heatmap(x_labels, y_labels, values):
+    fig, ax = plt.subplots()
+    im = ax.imshow(values)
+
+    # We want to show all ticks...
+    ax.set_xticks(np.arange(len(x_labels)))
+    ax.set_yticks(np.arange(len(y_labels)))
+    # ... and label them with the respective list entries
+    ax.set_xticklabels(x_labels)
+    ax.set_yticklabels(y_labels)
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=10,
+         rotation_mode="anchor")
+
+    # Loop over data dimensions and create text annotations.
+    for i in range(len(y_labels)):
+        for j in range(len(x_labels)):
+            text = ax.text(j, i, "%.2f"%values[i, j],
+                           ha="center", va="center", color="w", fontsize=6)
+
+    fig.tight_layout()
+    plt.show()
 
 # search through all articles in the designated folder that may contain certain keystring
 def article_search(rootfolder, keystring, cutthreshold):
@@ -193,13 +251,14 @@ def open_pdf_file(file_path):
 
 if __name__ == "__main__":
     # change to the folder 
-    rootfolder = "./testpaper/"
+    rootfolder = "../paper/"
     # keywords list you want to search on
     keystring = ['siam']
-    cutthreshold = 500
-
+    
     index = 1 
     if index == 0:
+        ## keyword search demo
+        cutthreshold = 500
         keywordresult = article_search(rootfolder, keystring, cutthreshold)
         resultlist = keywordresult
 
@@ -210,14 +269,9 @@ if __name__ == "__main__":
 
     elif index == 1:
         ## duplication search demo
+        cutthreshold = 1000
         duplicateresult = duplicate_search(rootfolder, cutthreshold)
-
         resultlist = duplicateresult
+        resultlist = merge_tuple(resultlist)
+
         print(resultlist)
-
-    
-
-    # a = 'review\n\nspecial  issue:  hippocampus  and  memory\n\na  neohebbian  framework  for  episodic\nmemory;  role  of  dopamine-dependent\nlate  ltp\njohn  lisman1,  anthony  a.  grace2 and  emrah  duzel3,4,5\n\n1 department  of  biology  and  volen  center  for  complex  systems,  brandeis  university,  waltham,  ma  02454-9110,  usa\n2 departments  of  neuroscience,  psychiatry  and  psychology,  university  of  pittsburgh,  pittsburgh,  pa  15260,  usa\n3 institute  of  cognitive  neuroscience,  university '
-    # a.replace('\n', ' ')
-    # print(a)
-
