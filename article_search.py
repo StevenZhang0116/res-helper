@@ -33,7 +33,11 @@ import json
 from datetime import datetime
 import functools
 import fnmatch
+import threading
+import warnings
+import time
 
+warnings.filterwarnings("ignore")
 
 stemmer = nltk.stem.porter.PorterStemmer()
 remove_punctuation_map = dict((ord(char), None) for char in string.punctuation)
@@ -125,12 +129,14 @@ def preprocess_text(input, cutthreshold):
     return subtext
 
 # check whether there are duplicated documents contained in the folder
+# this part will be time-consuming if there are a large number of files stored in the folder
 def duplicate_search(rootfolder, cutthreshold):
     sepkeystrig = []
     xordef = 1
 
     # extract information from all literature from scratch;
     # to know which current files are duplicated (most updated)
+    # therefore the loading interface using pre-created database is not provided
     arr = []
     for root, dirnames, filenames in os.walk(rootfolder):
         for filename in fnmatch.filter(filenames, '*.pdf'):
@@ -157,25 +163,7 @@ def duplicate_search(rootfolder, cutthreshold):
     simpaperlst = []
     cnt = 1
 
-    # for thetuple in unique_tuples_list:
-    #     try: 
-    #         if cnt % 10000 == 0:
-    #             print(f"{cnt}/{len(unique_tuples_list)}")
-
-    #         i, j = thetuple[0], thetuple[1]
-    #         text1, text2 = textreslst[i], textreslst[j]
-
-    #         # cosine angle approach
-    #         similarity1 = cosine_sim(text1, text2)
-    #         # threshold filtering
-    #         if similarity1 > 0.99:
-    #             simpaperlst.append([namelst[i], namelst[j]])
-    #         cnt += 1
-
-    #     except Exception as e:
-    #         print(e)
-
-  
+    # multiprocess version
     with Pool() as pool:
         partial_process_tuple = functools.partial(process_tuple, textreslst=textreslst, namelst=namelst)
         results = pool.map(partial_process_tuple, unique_tuples_list)
@@ -188,8 +176,15 @@ def duplicate_search(rootfolder, cutthreshold):
 
 def process_tuple(thetuple, textreslst, namelst):
     try:
+        current_thread = threading.current_thread()
+        thread_name = current_thread.name
+        thread_ident = current_thread.ident
+
         i, j = thetuple[0], thetuple[1]
         text1, text2 = textreslst[i], textreslst[j]
+
+        # # log
+        # print(f"Process tuple ({i},{j}) in thread {thread_ident}")
 
         # cosine angle approach
         similarity1 = cosine_sim(text1, text2)
@@ -288,8 +283,26 @@ def generate_json(allpath, allabstract, filename="loaddata.json"):
 
     print("== JSON database is generated ==")
 
+def delete_files(file_paths):
+    # input type: list of list
+    # total number of files that have been deleted
+    cnt = 0
+    for thepath in file_paths:
+        assert len(thepath) >= 2
+        for i in range(1, len(thepath)):
+            try:
+                os.remove(thepath[i])
+                cnt += 1
+                print(f"Remove {thepath[i]}")
+            except Exception as e:
+                print(e)
+    return cnt
+
 # main function
 if __name__ == "__main__":
+    '''
+    === Revise the following parameters to customize [your] case. ===
+    '''
     # filepath of designated folder
     rootfolder = "../paper/"
     # keywords list you want to search on; 
@@ -304,6 +317,11 @@ if __name__ == "__main__":
     ioindex = 1
     # database index
     databaseindex = 0
+    '''
+    === END ===
+    '''
+
+    start_time = time.time()
 
     if index == 0:
         file_name = "loaddata.json"
@@ -368,6 +386,14 @@ if __name__ == "__main__":
         cutthreshold = 1000
         duplicateresult = duplicate_search(rootfolder, cutthreshold)
         resultlist = duplicateresult
-        resultlist = merge_tuple(resultlist)
-
+        # resultlist = merge_tuple(resultlist)
         print(resultlist)
+        deleteindex = input(f"Delete these files? ")
+        if deleteindex == 1:
+            cnt = delete_files(resultlist)
+            print(f"Total number of files for deletion: {cnt}")
+
+
+    end_time = time.time()
+    running_time = end_time - start_time
+    print(f"Program running time: {running_time}")
