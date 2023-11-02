@@ -31,6 +31,8 @@ import tensorflow_hub as hub
 import concurrent.futures
 import json
 from datetime import datetime
+import functools
+import fnmatch
 
 
 stemmer = nltk.stem.porter.PorterStemmer()
@@ -127,6 +129,8 @@ def duplicate_search(rootfolder, cutthreshold):
     sepkeystrig = []
     xordef = 1
 
+    # extract information from all literature from scratch;
+    # to know which current files are duplicated (most updated)
     arr = []
     for root, dirnames, filenames in os.walk(rootfolder):
         for filename in fnmatch.filter(filenames, '*.pdf'):
@@ -171,29 +175,31 @@ def duplicate_search(rootfolder, cutthreshold):
     #     except Exception as e:
     #         print(e)
 
-    def process_tuple(thetuple):
-        try:
-            i, j = thetuple[0], thetuple[1]
-            text1, text2 = textreslst[i], textreslst[j]
-
-            # cosine angle approach
-            similarity1 = cosine_sim(text1, text2)
-            if similarity1 > 0.99:
-                return [namelst[i], namelst[j]]
-            return None
-
-        except Exception as e:
-            print(e)
-            return None
-        
+  
     with Pool() as pool:
-        results = pool.map(process_tuple, unique_tuples_list)
+        partial_process_tuple = functools.partial(process_tuple, textreslst=textreslst, namelst=namelst)
+        results = pool.map(partial_process_tuple, unique_tuples_list)
 
     simpaperlst.extend(filter(None, results))
 
     print("== Duplication Test is finished ==")
 
     return simpaperlst
+
+def process_tuple(thetuple, textreslst, namelst):
+    try:
+        i, j = thetuple[0], thetuple[1]
+        text1, text2 = textreslst[i], textreslst[j]
+
+        # cosine angle approach
+        similarity1 = cosine_sim(text1, text2)
+        if similarity1 > 0.99:
+            return [namelst[i], namelst[j]]
+        return None
+
+    except Exception as e:
+        print(e)
+        return None
 
 def merge_tuple(input):
     merged_tuples = {}
