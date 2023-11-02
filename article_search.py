@@ -1,4 +1,4 @@
-# this code serves for quickly search information, 
+# this code serves for quickly search information,
 # including title, authors' names, etc., from a designated root folder
 # specifically designed for a "raw" literature search
 
@@ -43,29 +43,37 @@ stemmer = nltk.stem.porter.PorterStemmer()
 remove_punctuation_map = dict((ord(char), None) for char in string.punctuation)
 
 # inspired from: https://stackoverflow.com/questions/8897593/how-to-compute-the-similarity-between-two-text-documents
+
+
 def stem_tokens(tokens):
     return [stemmer.stem(item) for item in tokens]
+
 
 def normalize(text):
     return stem_tokens(nltk.word_tokenize(text.lower().translate(remove_punctuation_map)))
 
+
 vectorizer = TfidfVectorizer(tokenizer=normalize, stop_words='english')
+
 
 def cosine_sim(text1, text2):
     tfidf = vectorizer.fit_transform([text1, text2])
-    return ((tfidf * tfidf.T).A)[0,1]
+    return ((tfidf * tfidf.T).A)[0, 1]
 
 # process the pdf file
+
+
 def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
-    reslst = [] # filtered filepath
-    allreslst = [] # all filepath
-    abslst = [] # filtered abstract (should have same length with [reslst]) 
-    allabslst = [] # all abstract
+    reslst = []  # filtered filepath
+    allreslst = []  # all filepath
+    abslst = []  # filtered abstract (should have same length with [reslst])
+    allabslst = []  # all abstract
 
     try:
         resource_manager = PDFResourceManager()
         fake_file_handle = io.StringIO()
-        converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
+        converter = TextConverter(
+            resource_manager, fake_file_handle, laparams=LAParams())
         page_interpreter = PDFPageInterpreter(resource_manager, converter)
 
         fpagechecker = 0
@@ -104,11 +112,12 @@ def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
 
     return [reslst, abslst, allreslst, allabslst]
 
+
 def breakpt_gen():
     init = '\n'
     numbers = list(range(10))
     char_num = [init + str(i) for i in numbers]
-    letters =  list(string.ascii_letters)
+    letters = list(string.ascii_letters)
     char_letters = [init + i for i in letters]
 
     lst = []
@@ -116,6 +125,7 @@ def breakpt_gen():
     lst.extend(char_letters)
 
     return lst
+
 
 def preprocess_text(input, cutthreshold):
     subtext = input[0:cutthreshold]
@@ -130,6 +140,8 @@ def preprocess_text(input, cutthreshold):
 
 # check whether there are duplicated documents contained in the folder
 # this part will be time-consuming if there are a large number of files stored in the folder
+
+
 def duplicate_search(rootfolder, cutthreshold):
     sepkeystrig = []
     xordef = 1
@@ -144,10 +156,11 @@ def duplicate_search(rootfolder, cutthreshold):
 
     textreslst = []
     namelst = []
-    with Pool() as pool: 
+    with Pool() as pool:
         textresults = []
         for xpath in arr:
-            result = pool.apply_async(process_pdf, (xpath, sepkeystrig, xordef, cutthreshold))
+            result = pool.apply_async(
+                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold))
             textresults.append(result)
 
         for result in textresults:
@@ -156,7 +169,8 @@ def duplicate_search(rootfolder, cutthreshold):
 
     print("== Abstract Texts are generated; Start Duplication Search ==")
     # generate all unordered 2-dimensional tuples within the specified range
-    unique_tuples_set = {tuple(sorted((x, y))) for x in range(len(textreslst)) for y in range(len(textreslst))}
+    unique_tuples_set = {tuple(sorted((x, y))) for x in range(
+        len(textreslst)) for y in range(len(textreslst))}
     # remove tuples with the same elements and filter out tuples where x and y are equal
     unique_tuples_list = [t for t in unique_tuples_set if t[0] != t[1]]
 
@@ -165,7 +179,8 @@ def duplicate_search(rootfolder, cutthreshold):
 
     # multiprocess version
     with Pool() as pool:
-        partial_process_tuple = functools.partial(process_tuple, textreslst=textreslst, namelst=namelst)
+        partial_process_tuple = functools.partial(
+            process_tuple, textreslst=textreslst, namelst=namelst)
         results = pool.map(partial_process_tuple, unique_tuples_list)
 
     simpaperlst.extend(filter(None, results))
@@ -173,6 +188,7 @@ def duplicate_search(rootfolder, cutthreshold):
     print("== Duplication Test is finished ==")
 
     return simpaperlst
+
 
 def process_tuple(thetuple, textreslst, namelst):
     try:
@@ -196,12 +212,13 @@ def process_tuple(thetuple, textreslst, namelst):
         print(e)
         return None
 
+
 def merge_tuple(input):
     merged_tuples = {}
 
     for thetuple in input:
         # sort the tuple to handle (x, y) and (y, x) cases
-        sorted_tuple = tuple(sorted(thetuple))  
+        sorted_tuple = tuple(sorted(thetuple))
         if sorted_tuple in merged_tuples:
             merged_tuples[sorted_tuple] += thetuple
         else:
@@ -211,6 +228,8 @@ def merge_tuple(input):
     return merged_tuple_list
 
 # split keywords into separate words (contained in the list)
+
+
 def splitkey(keystring):
     sepkeystrig = []
     for txt in keystring:
@@ -220,6 +239,8 @@ def splitkey(keystring):
     return sepkeystrig
 
 # search through all articles in the designated folder that may contain certain keystring
+
+
 def article_search(rootfolder, keystring, cutthreshold):
     sepkeystrig = splitkey(keystring)
 
@@ -231,9 +252,9 @@ def article_search(rootfolder, keystring, cutthreshold):
             arr.append(os.path.join(root, filename))
     print(f"Total number of files: {len(arr)}")
 
-    reslst = [] # desired filepath
-    allreslst = [] # all path for all files
-    allabslst = [] # all path for all extracted information from all files
+    reslst = []  # desired filepath
+    allreslst = []  # all path for all files
+    allabslst = []  # all path for all extracted information from all files
 
     brelst = np.linspace(10, 100, 10)
 
@@ -248,7 +269,8 @@ def article_search(rootfolder, keystring, cutthreshold):
                 print(f"Search Finished: {brelst[brkcnt]}%")
                 brkcnt += 1
 
-            result = pool.apply_async(process_pdf, (xpath, sepkeystrig, xordef, cutthreshold))
+            result = pool.apply_async(
+                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold))
             results.append(result)
 
             cnt += 1
@@ -259,8 +281,8 @@ def article_search(rootfolder, keystring, cutthreshold):
             allreslst.extend(result.get()[2])
             allabslst.extend(result.get()[3])
 
-
     return [reslst, allreslst, allabslst]
+
 
 def open_pdf_file(file_path):
     if platform.system() == 'Darwin':  # macOS
@@ -272,9 +294,10 @@ def open_pdf_file(file_path):
     else:
         print("Unsupported operating system.")
 
+
 def generate_json(allpath, allabstract, filename="loaddata.json"):
     data = {
-        "path": allpath, 
+        "path": allpath,
         "abstract": allabstract
     }
 
@@ -282,6 +305,7 @@ def generate_json(allpath, allabstract, filename="loaddata.json"):
         json.dump(data, json_file)
 
     print("== JSON database is generated ==")
+
 
 def delete_files(file_paths):
     # input type: list of list
@@ -298,6 +322,7 @@ def delete_files(file_paths):
                 print(e)
     return cnt
 
+
 # main function
 if __name__ == "__main__":
     '''
@@ -305,7 +330,7 @@ if __name__ == "__main__":
     '''
     # filepath of designated folder
     rootfolder = "../paper/"
-    # keywords list you want to search on; 
+    # keywords list you want to search on;
     # for more precise result, keep it short and concise without special characters;
     # e.g. article's title, author's name, or article's keyword
     keystring = ['continuous control with deep reinforcement learning']
@@ -328,33 +353,37 @@ if __name__ == "__main__":
         file_path = os.path.join(os.getcwd(), file_name)
         if os.path.exists(file_path):
             timestamp = os.path.getmtime(file_path)
-            formatted_timestamp = datetime.fromtimestamp(timestamp).strftime('%H:%M at %m:%d:%Y')
+            formatted_timestamp = datetime.fromtimestamp(
+                timestamp).strftime('%H:%M at %m:%d:%Y')
             # output timestamp info
-            print(f"Database file with path: {file_path} generated at {formatted_timestamp}")
+            print(
+                f"Database file with path: {file_path} generated at {formatted_timestamp}")
         else:
             print("No database is existed")
-        
+
         if ioindex == 0:
             print("== Starting searching from scratch ==")
-            ## keyword search demo
+            # keyword search demo
             cutthreshold = 500
-            keywordresult, allresult, allabstract = article_search(rootfolder, keystring, cutthreshold)
+            keywordresult, allresult, allabstract = article_search(
+                rootfolder, keystring, cutthreshold)
             print(f"Filterd articles: {article_search}")
             # print(f"All articles: {allresult}")
             resultlist = keywordresult
 
             if databaseindex == 1:
-                rewriteindex = input(f"Database exists; Do you want to overwrite this?")
+                rewriteindex = input(
+                    f"Database exists; Do you want to overwrite this?")
                 if rewriteindex == 0:
                     databaseindex = 0
-                    
+
             if databaseindex == 0:
                 # create json database file
                 generate_json(allresult, allabstract)
-        
+
         elif ioindex == 1:
             print("== Use database result ==")
-            ## keyword search demo, but using pregenerated database
+            # keyword search demo, but using pregenerated database
             try:
                 resultlist = []
                 sepkeystrig = splitkey(keystring)
@@ -374,7 +403,8 @@ if __name__ == "__main__":
                 print(e)
 
         # whether to open the selected files
-        openindex = input(f"Do you want to open these {len(resultlist)} files? ")
+        openindex = input(
+            f"Do you want to open these {len(resultlist)} files? ")
         # open the files (in default application) if permitted
         # DON'T DO THAT IF THERE ARE TOO MANY FILES IN THE SEARCHED LIST
         if int(openindex) == 1:
@@ -382,7 +412,7 @@ if __name__ == "__main__":
                 open_pdf_file(i)
 
     elif index == 1:
-        ## duplication search demo
+        # duplication search demo
         cutthreshold = 1000
         duplicateresult = duplicate_search(rootfolder, cutthreshold)
         resultlist = duplicateresult
@@ -392,7 +422,6 @@ if __name__ == "__main__":
         if deleteindex == 1:
             cnt = delete_files(resultlist)
             print(f"Total number of files for deletion: {cnt}")
-
 
     end_time = time.time()
     running_time = end_time - start_time
