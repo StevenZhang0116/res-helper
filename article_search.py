@@ -4,6 +4,7 @@
 
 # jul 2 update -- change the code to multiprocessing version
 # oct 30 update -- update duplication check
+# nov 1st update -- add I/O interface [embedded into article search]
 
 # Author: Zihan Zhang, UW
 
@@ -28,6 +29,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import matplotlib.pyplot as plt
 import tensorflow_hub as hub
 import concurrent.futures
+import json
+from datetime import datetime
 
 
 stemmer = nltk.stem.porter.PorterStemmer()
@@ -48,8 +51,11 @@ def cosine_sim(text1, text2):
 
 
 def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
-    reslst = []
-    abslst = []
+    reslst = [] # filtered filepath
+    allreslst = [] # all filepath
+    abslst = [] # filtered abstract (should have same length with [reslst]) 
+    allabslst = [] # all abstract
+
     try:
         resource_manager = PDFResourceManager()
         fake_file_handle = io.StringIO()
@@ -70,22 +76,28 @@ def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
                 time.sleep(1000)
 
             subtext = preprocess_text(text, cutthreshold)
-            abslst.append(subtext)
-            # print(abslst)
+            # all information include
+            allreslst.append(xpath)
+            allabslst.append(subtext)
 
+            # only the desired information included
+            # "AND" or "OR" judgement
             if xordef == 0:
                 if any([x in subtext for x in sepkeystrig]):
                     reslst.append(xpath)
+                    abslst.append(subtext)
             elif xordef == 1:
                 if all([x in subtext for x in sepkeystrig]):
                     reslst.append(xpath)
+                    abslst.append(subtext)
 
             converter.close()
             fake_file_handle.close()
     except Exception as e:
         print(e)
 
-    return [reslst, abslst]
+    return [reslst, abslst, allreslst, allabslst]
+
 
 def breakpt_gen():
     init = '\n'
@@ -176,45 +188,30 @@ def merge_tuple(input):
     merged_tuple_list = list(merged_tuples.values())
     return merged_tuple_list
 
-
-def heatmap(x_labels, y_labels, values):
-    fig, ax = plt.subplots()
-    im = ax.imshow(values)
-
-    # We want to show all ticks...
-    ax.set_xticks(np.arange(len(x_labels)))
-    ax.set_yticks(np.arange(len(y_labels)))
-    # ... and label them with the respective list entries
-    ax.set_xticklabels(x_labels)
-    ax.set_yticklabels(y_labels)
-
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=10,
-         rotation_mode="anchor")
-
-    # Loop over data dimensions and create text annotations.
-    for i in range(len(y_labels)):
-        for j in range(len(x_labels)):
-            text = ax.text(j, i, "%.2f"%values[i, j],
-                           ha="center", va="center", color="w", fontsize=6)
-
-    fig.tight_layout()
-    plt.show()
-
-# search through all articles in the designated folder that may contain certain keystring
-def article_search(rootfolder, keystring, cutthreshold):
+def splitkey(keystring):
     sepkeystrig = []
     for txt in keystring:
         for j in txt.split():
             sepkeystrig.append(j.lower())
+
+    return sepkeystrig
+
+# search through all articles in the designated folder that may contain certain keystring
+def article_search(rootfolder, keystring, cutthreshold):
+    sepkeystrig = splitkey(keystring)
+
     xordef = 1
 
     arr = []
     for root, dirnames, filenames in os.walk(rootfolder):
         for filename in fnmatch.filter(filenames, '*.pdf'):
             arr.append(os.path.join(root, filename))
+    print(f"Total number of files: {len(arr)}")
 
-    reslst = []
+    reslst = [] # desired filepath
+    allreslst = [] # all path for all files
+    allabslst = [] # all path for all extracted information from all files
+
     brelst = np.linspace(10, 100, 10)
 
     cnt = 1
@@ -236,8 +233,11 @@ def article_search(rootfolder, keystring, cutthreshold):
         # Retrieve the results from the multiprocessing tasks
         for result in results:
             reslst.extend(result.get()[0])
+            allreslst.extend(result.get()[2])
+            allabslst.extend(result.get()[3])
 
-    return reslst
+
+    return [reslst, allreslst, allabslst]
 
 def open_pdf_file(file_path):
     if platform.system() == 'Darwin':  # macOS
@@ -249,20 +249,73 @@ def open_pdf_file(file_path):
     else:
         print("Unsupported operating system.")
 
-if __name__ == "__main__":
-    # change to the folder 
-    rootfolder = "../paper/"
-    # keywords list you want to search on
-    keystring = ['siam']
-    
-    index = 1 
-    if index == 0:
-        ## keyword search demo
-        cutthreshold = 500
-        keywordresult = article_search(rootfolder, keystring, cutthreshold)
-        resultlist = keywordresult
+def generate_json(allpath, allabstract, filename="loaddata.json"):
+    data = {
+        "path": allpath, 
+        "abstract": allabstract
+    }
 
+    with open(filename, "w") as json_file:
+        json.dump(data, json_file)
+
+    print("== JSON database is generated ==")
+
+if __name__ == "__main__":
+    # filepath of designated folder
+    rootfolder = "../paper/"
+    # keywords list you want to search on; 
+    # for more precise result, keep it short and concise without special characters;
+    # e.g. article's title, author's name, or article's keyword
+    keystring = ['continuous control with deep reinforcement learning']
+    # which functionality to choose
+    index = 0 
+    # I/O index
+    ioindex = 1
+    if index == 0:
+        file_name = "loaddata.json"
+        file_path = os.path.join(os.getcwd(), file_name)
+        if os.path.exists(file_path):
+            timestamp = os.path.getmtime(file_path)
+            formatted_timestamp = datetime.fromtimestamp(timestamp).strftime('%H:%M at %m:%d:%Y')
+            # output timestamp info
+            print(f"Database file with path: {file_path} generated at {formatted_timestamp}")
+        else:
+            print("No database is existed")
+
+        if ioindex == 0:
+            print("== Starting searching from scratch ==")
+            ## keyword search demo
+            cutthreshold = 500
+            keywordresult, allresult, allabstract = article_search(rootfolder, keystring, cutthreshold)
+            print(f"Filterd articles: {article_search}")
+            # print(f"All articles: {allresult}")
+            resultlist = keywordresult
+            # create json database file
+            generate_json(allresult, allabstract)
+        
+        elif ioindex == 1:
+            print("== Use database result ==")
+            ## keyword search demo, but using pregenerated database
+            try:
+                resultlist = []
+                sepkeystrig = splitkey(keystring)
+
+                with open(file_path, "r") as json_file:
+                    data = json.load(json_file)
+                    allpath = data["path"]
+                    allabstract = data["abstract"]
+                    for i in range(len(allpath)):
+                        theabstract = allabstract[i]
+                        if all([x in theabstract for x in sepkeystrig]):
+                            resultlist.append(allpath[i])
+
+            except Exception as e:
+                print(e)
+
+        # whether to open the selected files
         openindex = input(f"Do you want to open these {len(resultlist)} files? ")
+        # open the files (in default application) if permitted
+        # DON'T DO THAT IF THERE ARE TOO MANY FILES IN THE SEARCHED LIST
         if int(openindex) == 1:
             for i in resultlist:
                 open_pdf_file(i)
