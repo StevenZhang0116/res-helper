@@ -144,31 +144,52 @@ def duplicate_search(rootfolder, cutthreshold):
             namelst.extend(result.get()[0])
             textreslst.extend(result.get()[1])
 
-    print("== Abstract Texts are generated ==")
-
-    # Generate all unordered 2-dimensional tuples within the specified range
+    print("== Abstract Texts are generated; Start Duplication Search ==")
+    # generate all unordered 2-dimensional tuples within the specified range
     unique_tuples_set = {tuple(sorted((x, y))) for x in range(len(textreslst)) for y in range(len(textreslst))}
-    # Remove tuples with the same elements and filter out tuples where x and y are equal
+    # remove tuples with the same elements and filter out tuples where x and y are equal
     unique_tuples_list = [t for t in unique_tuples_set if t[0] != t[1]]
 
     simpaperlst = []
     cnt = 1
-    for thetuple in unique_tuples_list:
-        try: 
-            if cnt % 10000 == 0:
-                print(f"{cnt}/{len(unique_tuples_list)}")
 
+    # for thetuple in unique_tuples_list:
+    #     try: 
+    #         if cnt % 10000 == 0:
+    #             print(f"{cnt}/{len(unique_tuples_list)}")
+
+    #         i, j = thetuple[0], thetuple[1]
+    #         text1, text2 = textreslst[i], textreslst[j]
+
+    #         # cosine angle approach
+    #         similarity1 = cosine_sim(text1, text2)
+    #         # threshold filtering
+    #         if similarity1 > 0.99:
+    #             simpaperlst.append([namelst[i], namelst[j]])
+    #         cnt += 1
+
+    #     except Exception as e:
+    #         print(e)
+
+    def process_tuple(thetuple):
+        try:
             i, j = thetuple[0], thetuple[1]
             text1, text2 = textreslst[i], textreslst[j]
 
             # cosine angle approach
             similarity1 = cosine_sim(text1, text2)
             if similarity1 > 0.99:
-                simpaperlst.append([namelst[i], namelst[j]])
-            cnt += 1
+                return [namelst[i], namelst[j]]
+            return None
 
         except Exception as e:
             print(e)
+            return None
+        
+    with Pool() as pool:
+        results = pool.map(process_tuple, unique_tuples_list)
+
+    simpaperlst.extend(filter(None, results))
 
     print("== Duplication Test is finished ==")
 
@@ -178,7 +199,8 @@ def merge_tuple(input):
     merged_tuples = {}
 
     for thetuple in input:
-        sorted_tuple = tuple(sorted(thetuple))  # Sort the tuple to handle (x, y) and (y, x) cases
+        # sort the tuple to handle (x, y) and (y, x) cases
+        sorted_tuple = tuple(sorted(thetuple))  
         if sorted_tuple in merged_tuples:
             merged_tuples[sorted_tuple] += thetuple
         else:
@@ -269,7 +291,9 @@ if __name__ == "__main__":
     # e.g. article's title, author's name, or article's keyword
     keystring = ['continuous control with deep reinforcement learning']
     # which functionality to choose
-    index = 0 
+    # 0: search content &/ (re)create database
+    # 1: duplication search & remove undesired documents
+    index = 1
     # I/O index
     ioindex = 1
     # database index
