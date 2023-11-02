@@ -49,7 +49,7 @@ def cosine_sim(text1, text2):
     tfidf = vectorizer.fit_transform([text1, text2])
     return ((tfidf * tfidf.T).A)[0,1]
 
-
+# process the pdf file
 def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
     reslst = [] # filtered filepath
     allreslst = [] # all filepath
@@ -98,7 +98,6 @@ def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
 
     return [reslst, abslst, allreslst, allabslst]
 
-
 def breakpt_gen():
     init = '\n'
     numbers = list(range(10))
@@ -123,7 +122,7 @@ def preprocess_text(input, cutthreshold):
     subtext = subtext.lower()
     return subtext
 
-# check whether there are duplicated documents... 
+# check whether there are duplicated documents contained in the folder
 def duplicate_search(rootfolder, cutthreshold):
     sepkeystrig = []
     xordef = 1
@@ -188,6 +187,7 @@ def merge_tuple(input):
     merged_tuple_list = list(merged_tuples.values())
     return merged_tuple_list
 
+# split keywords into separate words (contained in the list)
 def splitkey(keystring):
     sepkeystrig = []
     for txt in keystring:
@@ -260,6 +260,7 @@ def generate_json(allpath, allabstract, filename="loaddata.json"):
 
     print("== JSON database is generated ==")
 
+# main function
 if __name__ == "__main__":
     # filepath of designated folder
     rootfolder = "../paper/"
@@ -271,6 +272,9 @@ if __name__ == "__main__":
     index = 0 
     # I/O index
     ioindex = 1
+    # database index
+    databaseindex = 0
+
     if index == 0:
         file_name = "loaddata.json"
         file_path = os.path.join(os.getcwd(), file_name)
@@ -281,7 +285,7 @@ if __name__ == "__main__":
             print(f"Database file with path: {file_path} generated at {formatted_timestamp}")
         else:
             print("No database is existed")
-
+        
         if ioindex == 0:
             print("== Starting searching from scratch ==")
             ## keyword search demo
@@ -290,8 +294,15 @@ if __name__ == "__main__":
             print(f"Filterd articles: {article_search}")
             # print(f"All articles: {allresult}")
             resultlist = keywordresult
-            # create json database file
-            generate_json(allresult, allabstract)
+
+            if databaseindex == 1:
+                rewriteindex = input(f"Database exists; Do you want to overwrite this?")
+                if rewriteindex == 0:
+                    databaseindex = 0
+                    
+            if databaseindex == 0:
+                # create json database file
+                generate_json(allresult, allabstract)
         
         elif ioindex == 1:
             print("== Use database result ==")
@@ -304,6 +315,8 @@ if __name__ == "__main__":
                     data = json.load(json_file)
                     allpath = data["path"]
                     allabstract = data["abstract"]
+                    print(f"Total number of files: {len(allpath)}")
+                    # searching over list is efficient, so parallel computation is not needed
                     for i in range(len(allpath)):
                         theabstract = allabstract[i]
                         if all([x in theabstract for x in sepkeystrig]):
