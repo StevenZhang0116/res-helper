@@ -15,6 +15,10 @@ from pdfminer3.pdfinterp import PDFResourceManager
 from pdfminer3.pdfinterp import PDFPageInterpreter
 from pdfminer3.converter import PDFPageAggregator
 from pdfminer3.converter import TextConverter
+
+from pdf2image import convert_from_path
+from PIL import Image
+
 import io
 import os
 import fnmatch
@@ -36,6 +40,7 @@ import fnmatch
 import threading
 import warnings
 import time
+# import fitz
 
 warnings.filterwarnings("ignore")
 
@@ -43,31 +48,32 @@ stemmer = nltk.stem.porter.PorterStemmer()
 remove_punctuation_map = dict((ord(char), None) for char in string.punctuation)
 
 # inspired from: https://stackoverflow.com/questions/8897593/how-to-compute-the-similarity-between-two-text-documents
-
-
 def stem_tokens(tokens):
     return [stemmer.stem(item) for item in tokens]
-
 
 def normalize(text):
     return stem_tokens(nltk.word_tokenize(text.lower().translate(remove_punctuation_map)))
 
-
 vectorizer = TfidfVectorizer(tokenizer=normalize, stop_words='english')
-
 
 def cosine_sim(text1, text2):
     tfidf = vectorizer.fit_transform([text1, text2])
     return ((tfidf * tfidf.T).A)[0, 1]
 
+def pdf_first_page_to_image(pdf_path, image_path):
+    images = convert_from_path(pdf_path, first_page=1, last_page=1)
+    for image in images:
+        image.save(image_path, 'PNG')
+
+
 # process the pdf file
-
-
 def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
     reslst = []  # filtered filepath
     allreslst = []  # all filepath
     abslst = []  # filtered abstract (should have same length with [reslst])
     allabslst = []  # all abstract
+    firstpagelst = []
+    allfirstpagelst = []
 
     try:
         resource_manager = PDFResourceManager()
@@ -296,6 +302,13 @@ def open_pdf_file(file_path):
 
 
 def generate_json(allpath, allabstract, filename="loaddata.json"):
+    # remove old database
+    try:
+        os.remove(filename)
+        print("Old Database is Removed")
+    except OSError:
+        pass
+
     data = {
         "path": allpath,
         "abstract": allabstract
@@ -337,12 +350,12 @@ if __name__ == "__main__":
     # which functionality to choose
     # 0: search content &/ (re)create database
     # 1: duplication search & remove undesired documents
-    index = 1
+    index = 0
 
     # [Nov 11th]: The following options are only needed when index == 0
-    # I/O index
-    ioindex = 1
-    # database index
+    # I/O index [whether to use existed database to speed up searching (though might not be exhaustive)]
+    ioindex = 0
+    # database index [whether to rewrite old database]
     databaseindex = 1
     '''
     === END ===
@@ -374,15 +387,8 @@ if __name__ == "__main__":
             resultlist = keywordresult
 
             if databaseindex == 1:
-                rewriteindex = input(
-                    f"Database exists; Do you want to overwrite this? ")
-                if rewriteindex == 1:
-                    databaseindex = 0
-
-            if databaseindex == 0:
-                # create json database file
                 generate_json(allresult, allabstract)
-
+                
         elif ioindex == 1:
             print("== Use database result ==")
             # keyword search demo, but using pregenerated database
