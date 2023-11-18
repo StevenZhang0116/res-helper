@@ -333,11 +333,11 @@ if __name__ == "__main__":
     # keywords list you want to search on;
     # for more precise result, keep it short and concise without special characters;
     # e.g. article's title, author's name, or article's keyword
-    keystring = ["towards the next generation of recurrent network models for cognitive neuroscience"]
+    keystring = ["training deep architectures"]
     # which functionality to choose
     # 0: search content &/ (re)create database
     # 1: duplication search & remove undesired documents
-    index = 0
+    index = 1
 
     # [Nov 11th]: The following options are only needed when index == 0
     # I/O index
@@ -375,8 +375,8 @@ if __name__ == "__main__":
 
             if databaseindex == 1:
                 rewriteindex = input(
-                    f"Database exists; Do you want to overwrite this?")
-                if rewriteindex == 0:
+                    f"Database exists; Do you want to overwrite this? ")
+                if rewriteindex == 1:
                     databaseindex = 0
 
             if databaseindex == 0:

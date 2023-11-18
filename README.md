@@ -1,21 +1,20 @@
-# res-helper
+# Your Research Helper
 
-This repository is regularly updated with short scripts (tested in Python 3.9.0) that can be valuable for academic research purposes.
+This repository is consistently updated with succinct scripts (validated in Python 3.9.0), which are highly useful for academic research.
 
 ****
 
-[article_search.py](https://github.com/StevenZhang0116/res-helper/blob/main/article_search.py): provide various functions to analyze pdfs (mainly academic literatures), including keyword searching and detection of duplicated files. Hope to replace [Mendeley](https://www.mendeley.com/) at some level, which has storage limitation (2G for free user, 5G for membership). For better user experience, the users could directly change parameters settings in the file. 
-* Duplication removal task can be time consuming. In my local test, comparing ~2000 articles take ~10 minutes. 
+[article_search.py](https://github.com/StevenZhang0116/res-helper/blob/main/article_search.py): This script offers a range of functionalities for analyzing PDFs (primarily academic papers), encompassing keyword searches and the identification of duplicate files. It aims to provide an alternative to [Mendeley](https://www.mendeley.com/) to some extent, which imposes storage limits (2GB for free users, 5GB for subscribers). For an enhanced experience, users are encouraged to adjust parameter settings directly within the file.
 
-* [testpaper]: include several arbitrarily chosen academic literature for test purpose. 
+* The task of duplication removal can be time-consuming. In my local tests, comparing approximately 2000 articles takes about 10 minutes. Regrettably, the comparison is conducted pairwise, implying the time complexity is O(N^2).
 
-* [loaddata.json]: sample database. 
+* [testpaper]: include several arbitrarily chosen academic literatures for testing purposes.
 
-Strongly suggest to run the code in [conda] for better version control. To use, simply: 
+* [loaddata.json]: a sample database.
+
+It is highly recommended to run the code in a [conda] environment for optimal version control. To use, simply execute the following commands:
 ```
 conda create -n "testpdf" python=3.9.0
 python -m pip install -r requirements.txt
 python article_search.py
 ```
-
-
