@@ -346,7 +346,7 @@ if __name__ == "__main__":
     # keywords list you want to search on;
     # for more precise result, keep it short and concise without special characters;
     # e.g. article's title, author's name, or article's keyword
-    keystring = ["training deep architectures"]
+    keystring = ["prioritized experience replay"]
     # which functionality to choose
     # 0: search content &/ (re)create database
     # 1: duplication search & remove undesired documents
@@ -354,7 +354,7 @@ if __name__ == "__main__":
 
     # [Nov 11th]: The following options are only needed when index == 0
     # I/O index [whether to use existed database to speed up searching (though might not be exhaustive)]
-    ioindex = 0
+    ioindex = 1
     # database index [whether to rewrite old database]
     databaseindex = 1
     '''
