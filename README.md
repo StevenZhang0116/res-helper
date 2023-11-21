@@ -18,3 +18,9 @@ conda create -n "testpdf" python=3.9.0
 python -m pip install -r requirements.txt
 python article_search.py
 ```
+
+****
+[mystyle.sty](https://github.com/StevenZhang0116/res-helper/blob/main/mystyle.sty): This file contains a preferred LaTeX formatting template that might be useful when you are writing an informal note or paper. The file has been modified based on the original design by Bobae Johnson from NYU Courant. To use it, simply add the following line to your main `.tex` file:
+```
+\usepackage{mystyle}
+```
