@@ -325,6 +325,7 @@ def delete_files(file_paths):
     # total number of files that have been deleted
     cnt = 0
     for thepath in file_paths:
+        print(thepath)
         assert len(thepath) >= 2
         for i in range(1, len(thepath)):
             try:
@@ -346,11 +347,11 @@ if __name__ == "__main__":
     # keywords list you want to search on;
     # for more precise result, keep it short and concise without special characters;
     # e.g. article's title, author's name, or article's keyword
-    keystring = ["prioritized experience replay"]
+    keystring = ["why neurons mix"]
     # which functionality to choose
     # 0: search content &/ (re)create database
     # 1: duplication search & remove undesired documents
-    index = 0
+    index = 1
 
     # [Nov 11th]: The following options are only needed when index == 0
     # I/O index [whether to use existed database to speed up searching (though might not be exhaustive)]
@@ -427,7 +428,7 @@ if __name__ == "__main__":
         # resultlist = merge_tuple(resultlist)
         print(resultlist)
         deleteindex = input(f"Delete these files? ")
-        if deleteindex == 1:
+        if int(deleteindex) == 1:
             cnt = delete_files(resultlist)
             print(f"Total number of files for deletion: {cnt}")
 
