@@ -347,11 +347,11 @@ if __name__ == "__main__":
     # keywords list you want to search on;
     # for more precise result, keep it short and concise without special characters;
     # e.g. article's title, author's name, or article's keyword
-    keystring = ["why neurons mix"]
+    keystring = ["hsic"]
     # which functionality to choose
     # 0: search content &/ (re)create database
     # 1: duplication search & remove undesired documents
-    index = 1
+    index = 0
 
     # [Nov 11th]: The following options are only needed when index == 0
     # I/O index [whether to use existed database to speed up searching (though might not be exhaustive)]
