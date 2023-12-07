@@ -134,8 +134,7 @@ def preprocess_text(input, cutthreshold):
 # check whether there are duplicated documents contained in the folder
 # this part will be time-consuming if there are a large number of files stored in the folder
 
-
-def duplicate_search(rootfolder, cutthreshold):
+def duplicate_search_by_words(rootfolder, cutthreshold):
     sepkeystrig = []
     xordef = 1
 
@@ -168,22 +167,19 @@ def duplicate_search(rootfolder, cutthreshold):
     unique_tuples_list = [t for t in unique_tuples_set if t[0] != t[1]]
 
     simpaperlst = []
-    cnt = 1
 
-    # multiprocess version
     with Pool() as pool:
         partial_process_tuple = functools.partial(
             process_tuple, textreslst=textreslst, namelst=namelst)
         results = pool.map(partial_process_tuple, unique_tuples_list)
 
     simpaperlst.extend(filter(None, results))
-
     print("== Duplication Test is finished ==")
 
     return simpaperlst
 
 
-def process_tuple(thetuple, textreslst, namelst):
+def process_tuple(thetuple, textreslst, namelst, similar_threshold=0.99):
     try:
         current_thread = threading.current_thread()
         thread_name = current_thread.name
@@ -197,7 +193,7 @@ def process_tuple(thetuple, textreslst, namelst):
 
         # cosine angle approach
         similarity1 = cosine_sim(text1, text2)
-        if similarity1 > 0.99:
+        if similarity1 > similar_threshold:
             return [namelst[i], namelst[j]]
         return None
 
@@ -234,7 +230,7 @@ def splitkey(keystring):
 # search through all articles in the designated folder that may contain certain keystring
 
 
-def article_search(rootfolder, keystring, cutthreshold):
+def article_search_by_words(rootfolder, keystring, cutthreshold):
     sepkeystrig = splitkey(keystring)
 
     xordef = 1

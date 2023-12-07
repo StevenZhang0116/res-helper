@@ -26,8 +26,7 @@ if __name__ == "__main__":
     # keywords list you want to search on;
     # for more precise result, keep it short and concise without special characters;
     # e.g. article's title, author's name, or article's keyword
-    parser.add_argument('--keystring', type=str,
-                        required=True, help="Keywords to search")
+    parser.add_argument('--keystring', type=str, help="Keywords to search")
 
     # which functionality to choose
     # 0: search content &/ (re)create database
@@ -42,7 +41,7 @@ if __name__ == "__main__":
 
     # database index [whether to rewrite old database]
     parser.add_argument('--databaseindex', type=int,
-                        choices=[0, 1], default=1, help='Database index [optional, default=1]')
+                        choices=[0, 1], default=0, help='Database index [optional, default=1]')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -61,7 +60,7 @@ if __name__ == "__main__":
         databaseindex = None
 
     print("=== Experiment Start ===")
-    
+
     start_time = time.time()
 
     if index == 0:
@@ -80,10 +79,10 @@ if __name__ == "__main__":
         if ioindex == 0:
             print("== Starting searching from scratch ==")
             # keyword search demo
-            cutthreshold = 500
-            keywordresult, allresult, allabstract = article_search(
+            cutthreshold = 1000
+            keywordresult, allresult, allabstract = article_search_by_words(
                 rootfolder, keystring, cutthreshold)
-            print(f"Filterd articles: {article_search}")
+            # print(f"Filterd articles: {article_search}")
             # print(f"All articles: {allresult}")
             resultlist = keywordresult
 
@@ -117,13 +116,14 @@ if __name__ == "__main__":
         # open the files (in default application) if permitted
         # DON'T DO THAT IF THERE ARE TOO MANY FILES IN THE SEARCHED LIST
         if int(openindex) == 1:
+            print(f"Search Files: {resultlist}")
             for i in resultlist:
                 open_pdf_file(i)
 
     elif index == 1:
         # duplication search demo
         cutthreshold = 1000
-        duplicateresult = duplicate_search(rootfolder, cutthreshold)
+        duplicateresult = duplicate_search_by_words(rootfolder, cutthreshold)
         resultlist = duplicateresult
         # resultlist = merge_tuple(resultlist)
         print(resultlist)
