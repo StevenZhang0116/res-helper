@@ -9,7 +9,6 @@
 # Author: Zihan Zhang, UW
 
 from article_search_helper import *
-import argparse
 
 if __name__ == "__main__":
     warnings.filterwarnings("ignore")
@@ -34,14 +33,18 @@ if __name__ == "__main__":
     parser.add_argument('--index', type=int, choices=[0, 1], required=True,
                         help='Functionality to choose (0: search content/create database, 1: duplication search)')
 
-    # [Nov 11th]: The following options are only needed when index == 0
+    # The following options are only needed when index == 0
     # I/O index [whether to use existed database to speed up searching (though might not be exhaustive)]
     parser.add_argument('--ioindex', type=int,
-                        choices=[0, 1], default=1, help='I/O index [optional, default=1]')
+                        choices=[0, 1], default=1, help='I/O index')
 
     # database index [whether to rewrite old database]
     parser.add_argument('--databaseindex', type=int,
-                        choices=[0, 1], default=0, help='Database index [optional, default=1]')
+                        choices=[0, 1], default=0, help='Database index')
+
+    # output image folder
+    parser.add_argument('--imgout', type=str, default="image_save/",
+                        help="Output path of first image extraction")
 
     # Parse the arguments
     args = parser.parse_args()
@@ -50,6 +53,11 @@ if __name__ == "__main__":
     rootfolder = args.rootfolder
     keystring = [args.keystring]
     index = args.index
+    img_output = f"{rootfolder}{args.imgout}"
+
+    # Create image output folder
+    os.makedirs(img_output, exist_ok=True)
+    print(f"Path '{img_output}' ensured.")
 
     # The following options are only needed when index == 0
     if index == 0:
@@ -81,9 +89,8 @@ if __name__ == "__main__":
             # keyword search demo
             cutthreshold = 1000
             keywordresult, allresult, allabstract = article_search_by_words(
-                rootfolder, keystring, cutthreshold)
-            # print(f"Filterd articles: {article_search}")
-            # print(f"All articles: {allresult}")
+                rootfolder, keystring, cutthreshold, img_output)
+
             resultlist = keywordresult
 
             if databaseindex == 1:
@@ -123,7 +130,7 @@ if __name__ == "__main__":
     elif index == 1:
         # duplication search demo
         cutthreshold = 1000
-        duplicateresult = duplicate_search_by_words(rootfolder, cutthreshold)
+        duplicateresult = duplicate_search_by_words_and_photos(rootfolder, cutthreshold, img_output, 0.99)
         resultlist = duplicateresult
         # resultlist = merge_tuple(resultlist)
         print(resultlist)
@@ -135,3 +142,6 @@ if __name__ == "__main__":
     end_time = time.time()
     running_time = end_time - start_time
     print(f"Program running time: {running_time}")
+
+    # Delete cache folder
+    delete_pycache(os.getcwd())

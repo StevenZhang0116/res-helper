@@ -8,6 +8,11 @@ from pdfminer3.converter import TextConverter
 
 from pdf2image import convert_from_path
 from PIL import Image
+import shutil
+
+import fitz
+from skimage.metrics import structural_similarity as ssim
+import traceback
 
 import io
 import os
@@ -30,37 +35,58 @@ import fnmatch
 import threading
 import warnings
 import time
+import scipy
+import cv2
+import argparse
+
 
 # inspired from: https://stackoverflow.com/questions/8897593/how-to-compute-the-similarity-between-two-text-documents
 stemmer = nltk.stem.porter.PorterStemmer()
 remove_punctuation_map = dict((ord(char), None) for char in string.punctuation)
 
+
 def stem_tokens(tokens):
     return [stemmer.stem(item) for item in tokens]
+
 
 def normalize(text):
     return stem_tokens(nltk.word_tokenize(text.lower().translate(remove_punctuation_map)))
 
+
 vectorizer = TfidfVectorizer(tokenizer=normalize, stop_words='english')
+
 
 def cosine_sim(text1, text2):
     tfidf = vectorizer.fit_transform([text1, text2])
     return ((tfidf * tfidf.T).A)[0, 1]
 
-def pdf_first_page_to_image(pdf_path, image_path):
-    images = convert_from_path(pdf_path, first_page=1, last_page=1)
-    for image in images:
-        image.save(image_path, 'PNG')
 
+def pdf_first_page_to_image(rawrootdir, pdfpath):
+    break_loc = find_occurrences(pdfpath, "/")[-1]
+    out_image_path = f"{rawrootdir}{pdfpath[break_loc+1:]}.png"
+    
+    images = convert_from_path(pdfpath, first_page=1, last_page=1)
+    for image in images:
+        image.save(out_image_path, 'PNG')
+        print(f"Save image to {out_image_path}")
+
+    # saved path of the image
+    return out_image_path 
+
+
+def find_occurrences(s, char):
+    return [index for index, c in enumerate(s) if c == char]
 
 # process the pdf file
-def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
+
+
+def process_pdf(xpath, sepkeystrig, xordef, cutthreshold, img_output):
     reslst = []  # filtered filepath
     allreslst = []  # all filepath
     abslst = []  # filtered abstract (should have same length with [reslst])
     allabslst = []  # all abstract
-    firstpagelst = []
-    allfirstpagelst = []
+    firstpagelst = [] # filtered image (based on the filtered abstract)
+    allfirstpagelst = [] # all output image
 
     try:
         resource_manager = PDFResourceManager()
@@ -87,23 +113,31 @@ def process_pdf(xpath, sepkeystrig, xordef, cutthreshold):
             allreslst.append(xpath)
             allabslst.append(subtext)
 
+            # save loaded first image
+
+            # out_image_path = pdf_first_page_to_image(img_output, xpath)
+            # allfirstpagelst.append(out_image_path)
+
             # only the desired information included
             # "AND" or "OR" judgement
             if xordef == 0:
                 if any([x in subtext for x in sepkeystrig]):
                     reslst.append(xpath)
                     abslst.append(subtext)
+                    # firstpagelst.append(out_image_path)
             elif xordef == 1:
                 if all([x in subtext for x in sepkeystrig]):
                     reslst.append(xpath)
                     abslst.append(subtext)
+                    # firstpagelst.append(out_image_path)
 
             converter.close()
             fake_file_handle.close()
     except Exception as e:
-        print(e)
+        tb = traceback.format_exc()
+        print(f"An error occurred: {e}\nTraceback details:\n{tb}")
 
-    return [reslst, abslst, allreslst, allabslst]
+    return [reslst, abslst, firstpagelst, allreslst, allabslst, allfirstpagelst]
 
 
 def breakpt_gen():
@@ -134,7 +168,8 @@ def preprocess_text(input, cutthreshold):
 # check whether there are duplicated documents contained in the folder
 # this part will be time-consuming if there are a large number of files stored in the folder
 
-def duplicate_search_by_words(rootfolder, cutthreshold):
+
+def duplicate_search_by_words_and_photos(rootfolder, cutthreshold, img_output, thres1=0.99, thres2=0.70):
     sepkeystrig = []
     xordef = 1
 
@@ -148,16 +183,18 @@ def duplicate_search_by_words(rootfolder, cutthreshold):
 
     textreslst = []
     namelst = []
+    imagelst = []
     with Pool() as pool:
         textresults = []
         for xpath in arr:
             result = pool.apply_async(
-                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold))
+                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold, img_output))
             textresults.append(result)
 
         for result in textresults:
             namelst.extend(result.get()[0])
             textreslst.extend(result.get()[1])
+            imagelst.extend(result.get()[2])
 
     print("== Abstract Texts are generated; Start Duplication Search ==")
     # generate all unordered 2-dimensional tuples within the specified range
@@ -167,10 +204,9 @@ def duplicate_search_by_words(rootfolder, cutthreshold):
     unique_tuples_list = [t for t in unique_tuples_set if t[0] != t[1]]
 
     simpaperlst = []
-
     with Pool() as pool:
         partial_process_tuple = functools.partial(
-            process_tuple, textreslst=textreslst, namelst=namelst)
+            process_tuple, textreslst=textreslst, namelst=namelst, imagelst=imagelst, word_threshold=thres1, image_threshold=thres2)
         results = pool.map(partial_process_tuple, unique_tuples_list)
 
     simpaperlst.extend(filter(None, results))
@@ -178,8 +214,25 @@ def duplicate_search_by_words(rootfolder, cutthreshold):
 
     return simpaperlst
 
+def resize_image(image, size):
+    inm = cv2.resize(image, (3507, 2481), interpolation=cv2.INTER_LINEAR)
+    gray = cv2.cvtColor(inm, cv2.COLOR_BGR2GRAY)
+    return gray
 
-def process_tuple(thetuple, textreslst, namelst, similar_threshold=0.99):
+def compare_image_similarity(image_path1, image_path2, size=1000):
+    # Load and convert images to grayscale
+    image1 = cv2.imread(image_path1, cv2.COLOR_BGR2GRAY)
+    image2 = cv2.imread(image_path2, cv2.COLOR_BGR2GRAY)
+
+    # Resize images
+    image1_resized = resize_image(image1, size)
+    image2_resized = resize_image(image2, size)
+
+    # Compute SSIM
+    score, _ = ssim(image1_resized, image2_resized, full=True)
+    return score
+
+def process_tuple(thetuple, textreslst, namelst, imagelst, word_threshold=0.99, image_threshold=0.70):
     try:
         current_thread = threading.current_thread()
         thread_name = current_thread.name
@@ -188,17 +241,20 @@ def process_tuple(thetuple, textreslst, namelst, similar_threshold=0.99):
         i, j = thetuple[0], thetuple[1]
         text1, text2 = textreslst[i], textreslst[j]
 
-        # # log
-        # print(f"Process tuple ({i},{j}) in thread {thread_ident}")
-
         # cosine angle approach
         similarity1 = cosine_sim(text1, text2)
-        if similarity1 > similar_threshold:
+        # similarity2 = compare_image_similarity(imagelst[i], imagelst[j])
+        
+        # if similarity1 > word_threshold or similarity2 > image_threshold:
+        if similarity1 > word_threshold: 
+            # print(f"Finished comparison bewteen {namelst[i]} and {namelst[j]}")
             return [namelst[i], namelst[j]]
+
         return None
 
     except Exception as e:
-        print(e)
+        tb = traceback.format_exc()
+        print(f"An error occurred: {e}\nTraceback details:\n{tb}")
         return None
 
 
@@ -230,7 +286,7 @@ def splitkey(keystring):
 # search through all articles in the designated folder that may contain certain keystring
 
 
-def article_search_by_words(rootfolder, keystring, cutthreshold):
+def article_search_by_words(rootfolder, keystring, cutthreshold, img_output):
     sepkeystrig = splitkey(keystring)
 
     xordef = 1
@@ -259,7 +315,7 @@ def article_search_by_words(rootfolder, keystring, cutthreshold):
                 brkcnt += 1
 
             result = pool.apply_async(
-                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold))
+                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold, img_output))
             results.append(result)
 
             cnt += 1
@@ -290,7 +346,8 @@ def generate_json(allpath, allabstract, filename="loaddata.json"):
         os.remove(filename)
         print("Old Database is Removed")
     except OSError:
-        pass
+        tb = traceback.format_exc()
+        print(f"An error occurred: {e}\nTraceback details:\n{tb}")
 
     data = {
         "path": allpath,
@@ -310,11 +367,20 @@ def delete_files(file_paths):
     for thepath in file_paths:
         print(thepath)
         assert len(thepath) >= 2
+        # delete everything except the first one
         for i in range(1, len(thepath)):
             try:
                 os.remove(thepath[i])
                 cnt += 1
                 print(f"Remove {thepath[i]}")
             except Exception as e:
-                print(e)
+                tb = traceback.format_exc()
+                print(f"An error occurred: {e}\nTraceback details:\n{tb}")
     return cnt
+
+
+def delete_pycache(directory):
+    for root, dirs, files in os.walk(directory):
+        if '__pycache__' in dirs:
+            print(f"Deleting: {os.path.join(root, '__pycache__')}")
+            shutil.rmtree(os.path.join(root, '__pycache__'))

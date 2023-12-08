@@ -8,6 +8,8 @@ This repository is consistently updated with succinct scripts (validated in Pyth
 
 * The task of duplication removal can be time-consuming. In my local tests, comparing approximately 2000 articles takes about 10 minutes. Regrettably, the comparison is conducted pairwise, implying the time complexity is O(N^2).
 
+* Functions of image comparison are included, but hard to be implemented in large-scale. 
+
 * [testpaper]: include several arbitrarily chosen academic literatures for testing purposes.
 
 * [loaddata.json]: a sample database.
