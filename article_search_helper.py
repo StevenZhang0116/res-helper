@@ -323,8 +323,8 @@ def article_search_by_words(rootfolder, keystring, cutthreshold, img_output):
         # Retrieve the results from the multiprocessing tasks
         for result in results:
             reslst.extend(result.get()[0])
-            allreslst.extend(result.get()[2])
-            allabslst.extend(result.get()[3])
+            allreslst.extend(result.get()[3])
+            allabslst.extend(result.get()[4])
 
     return [reslst, allreslst, allabslst]
 
@@ -344,7 +344,7 @@ def generate_json(allpath, allabstract, filename="loaddata.json"):
     # remove old database
     try:
         os.remove(filename)
-        print("Old Database is Removed")
+        print("=== Old Database is Removed ===")
     except OSError:
         tb = traceback.format_exc()
         print(f"An error occurred: {e}\nTraceback details:\n{tb}")
@@ -357,7 +357,7 @@ def generate_json(allpath, allabstract, filename="loaddata.json"):
     with open(filename, "w") as json_file:
         json.dump(data, json_file)
 
-    print("== JSON database is generated ==")
+    print(f"=== JSON database is generated (length={len(allpath)})===")
 
 
 def delete_files(file_paths):

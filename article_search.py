@@ -92,6 +92,8 @@ if __name__ == "__main__":
                 rootfolder, keystring, cutthreshold, img_output)
 
             resultlist = keywordresult
+            # check
+            assert len(allresult) == len(allabstract)
 
             if databaseindex == 1:
                 generate_json(allresult, allabstract)
@@ -141,7 +143,7 @@ if __name__ == "__main__":
 
     end_time = time.time()
     running_time = end_time - start_time
-    print(f"Program running time: {running_time}")
+    print(f"Program running time: {int(running_time)}s")
 
     # Delete cache folder
     delete_pycache(os.getcwd())
