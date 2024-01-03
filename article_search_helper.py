@@ -5,16 +5,19 @@ from pdfminer3.pdfinterp import PDFResourceManager
 from pdfminer3.pdfinterp import PDFPageInterpreter
 from pdfminer3.converter import PDFPageAggregator
 from pdfminer3.converter import TextConverter
-
+from sklearn.feature_extraction.text import TfidfVectorizer
 from pdf2image import convert_from_path
 from PIL import Image
-import shutil
-
-import fitz
 from skimage.metrics import structural_similarity as ssim
-import traceback
+from datetime import datetime
+from unicodedata import normalize
+from pdfrw import PdfReader
 
+import shutil
+import fitz
+import traceback
 import io
+import re
 import os
 import fnmatch
 import time
@@ -24,21 +27,16 @@ import subprocess
 import platform
 import string
 import nltk
-from sklearn.feature_extraction.text import TfidfVectorizer
 import matplotlib.pyplot as plt
 import tensorflow_hub as hub
 import concurrent.futures
 import json
-from datetime import datetime
 import functools
 import fnmatch
 import threading
-import warnings
 import time
-import scipy
 import cv2
-import argparse
-
+import random
 
 # inspired from: https://stackoverflow.com/questions/8897593/how-to-compute-the-similarity-between-two-text-documents
 stemmer = nltk.stem.porter.PorterStemmer()
@@ -64,14 +62,14 @@ def cosine_sim(text1, text2):
 def pdf_first_page_to_image(rawrootdir, pdfpath):
     break_loc = find_occurrences(pdfpath, "/")[-1]
     out_image_path = f"{rawrootdir}{pdfpath[break_loc+1:]}.png"
-    
+
     images = convert_from_path(pdfpath, first_page=1, last_page=1)
     for image in images:
         image.save(out_image_path, 'PNG')
         print(f"Save image to {out_image_path}")
 
     # saved path of the image
-    return out_image_path 
+    return out_image_path
 
 
 def find_occurrences(s, char):
@@ -80,13 +78,18 @@ def find_occurrences(s, char):
 # process the pdf file
 
 
-def process_pdf(xpath, sepkeystrig, xordef, cutthreshold, img_output):
+def process_pdf(xpath, sepkeystrig, xordef, cutthreshold, img_output, rootfolder):
     reslst = []  # filtered filepath
     allreslst = []  # all filepath
     abslst = []  # filtered abstract (should have same length with [reslst])
     allabslst = []  # all abstract
-    firstpagelst = [] # filtered image (based on the filtered abstract)
-    allfirstpagelst = [] # all output image
+    textlst = []  # filtered (based on abstract) text
+    alltextlst = []  # all text
+    titlelst = []  # title
+    alltitlelst = []  # all title
+    firstpagelst = []  # filtered image (based on the filtered abstract)
+    allfirstpagelst = []  # all output image
+    checklst = []
 
     try:
         resource_manager = PDFResourceManager()
@@ -109,11 +112,21 @@ def process_pdf(xpath, sepkeystrig, xordef, cutthreshold, img_output):
                 time.sleep(1000)
 
             subtext = preprocess_text(text, cutthreshold)
+            alltext = preprocess_text(text, len(text))
             # all information include
-            allreslst.append(xpath)
             allabslst.append(subtext)
+            alltextlst.append(alltext)
 
-            # save loaded first image
+            # extract new fullname
+            [newFullPath, newFullName, renamecheck] = renameFileToPDFTitle(
+                xpath, rootfolder)
+            
+            # add path only after the name is possibly revised
+            allreslst.append(newFullPath)
+            alltitlelst.append(newFullName)
+            checklst.append(renamecheck)
+
+            # save loaded first image [time consuming]
 
             # out_image_path = pdf_first_page_to_image(img_output, xpath)
             # allfirstpagelst.append(out_image_path)
@@ -124,11 +137,15 @@ def process_pdf(xpath, sepkeystrig, xordef, cutthreshold, img_output):
                 if any([x in subtext for x in sepkeystrig]):
                     reslst.append(xpath)
                     abslst.append(subtext)
+                    textlst.append(alltext)
+                    titlelst.append(newFullName)
                     # firstpagelst.append(out_image_path)
             elif xordef == 1:
                 if all([x in subtext for x in sepkeystrig]):
                     reslst.append(xpath)
                     abslst.append(subtext)
+                    textlst.append(alltext)
+                    titlelst.append(newFullName)
                     # firstpagelst.append(out_image_path)
 
             converter.close()
@@ -137,7 +154,7 @@ def process_pdf(xpath, sepkeystrig, xordef, cutthreshold, img_output):
         tb = traceback.format_exc()
         print(f"An error occurred: {e}\nTraceback details:\n{tb}")
 
-    return [reslst, abslst, firstpagelst, allreslst, allabslst, allfirstpagelst]
+    return [reslst, abslst, textlst, titlelst, firstpagelst, allreslst, allabslst, alltextlst, alltitlelst, allfirstpagelst, checklst]
 
 
 def breakpt_gen():
@@ -153,16 +170,24 @@ def breakpt_gen():
 
     return lst
 
+# difficulty: handling ascii encoding + unicode characters
+
 
 def preprocess_text(input, cutthreshold):
     subtext = input[0:cutthreshold]
-    subtext.replace('\n', '')
+    # replace typical break characters
+    subtext = subtext.replace("\n", "").replace(
+        "\r", "").replace("\t", "").replace("\f", "")
+    subtext = re.sub(r'[^\x00-\x7F]+', '', subtext)
 
     breaktext = breakpt_gen()
     for txt in breaktext:
         subtext.replace(txt, '')
 
+    # change to lower space
     subtext = subtext.lower()
+    # remove all unicode characters
+    # subtext = subtext.encode('ascii', 'ignore').decode('ascii')
     return subtext
 
 # check whether there are duplicated documents contained in the folder
@@ -181,20 +206,24 @@ def duplicate_search_by_words_and_photos(rootfolder, cutthreshold, img_output, t
         for filename in fnmatch.filter(filenames, '*.pdf'):
             arr.append(os.path.join(root, filename))
 
-    textreslst = []
     namelst = []
+    textreslst = []
+    fulltextlst = []
     imagelst = []
+    titlelst = []
     with Pool() as pool:
         textresults = []
         for xpath in arr:
             result = pool.apply_async(
-                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold, img_output))
+                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold, img_output, rootfolder))
             textresults.append(result)
 
         for result in textresults:
             namelst.extend(result.get()[0])
             textreslst.extend(result.get()[1])
-            imagelst.extend(result.get()[2])
+            fulltextlst.extend(result.get()[2])
+            titlelst.extend(result.get()[3])
+            imagelst.extend(result.get()[4])
 
     print("== Abstract Texts are generated; Start Duplication Search ==")
     # generate all unordered 2-dimensional tuples within the specified range
@@ -205,6 +234,8 @@ def duplicate_search_by_words_and_photos(rootfolder, cutthreshold, img_output, t
 
     simpaperlst = []
     with Pool() as pool:
+        # do not need full text to do duplication check
+        # time consuming and hard to pick a reasonable and stable threshold
         partial_process_tuple = functools.partial(
             process_tuple, textreslst=textreslst, namelst=namelst, imagelst=imagelst, word_threshold=thres1, image_threshold=thres2)
         results = pool.map(partial_process_tuple, unique_tuples_list)
@@ -214,10 +245,30 @@ def duplicate_search_by_words_and_photos(rootfolder, cutthreshold, img_output, t
 
     return simpaperlst
 
+
+def renameFileToPDFTitle(fullName, path):
+    try:
+        # Extract pdf title from pdf file
+        newName = PdfReader(fullName).Info.Title
+        if str(newName) == "()":
+            raise ValueError
+        # Remove surrounding brackets that some pdf titles have
+        newName = newName.strip('()') + '.pdf'
+        newName = newName.replace("\\", "").replace("/", "")
+        newFullName = os.path.join(path, newName)
+        os.rename(fullName, newFullName)
+        return [newFullName, newName, 1]
+    except:
+        filename = fullName.replace(path, "")
+        # print(f"filename: {filename}")
+        return [fullName, filename, 0]
+
+
 def resize_image(image, size):
     inm = cv2.resize(image, (3507, 2481), interpolation=cv2.INTER_LINEAR)
     gray = cv2.cvtColor(inm, cv2.COLOR_BGR2GRAY)
     return gray
+
 
 def compare_image_similarity(image_path1, image_path2, size=1000):
     # Load and convert images to grayscale
@@ -232,6 +283,7 @@ def compare_image_similarity(image_path1, image_path2, size=1000):
     score, _ = ssim(image1_resized, image2_resized, full=True)
     return score
 
+
 def process_tuple(thetuple, textreslst, namelst, imagelst, word_threshold=0.99, image_threshold=0.70):
     try:
         current_thread = threading.current_thread()
@@ -244,9 +296,9 @@ def process_tuple(thetuple, textreslst, namelst, imagelst, word_threshold=0.99, 
         # cosine angle approach
         similarity1 = cosine_sim(text1, text2)
         # similarity2 = compare_image_similarity(imagelst[i], imagelst[j])
-        
+
         # if similarity1 > word_threshold or similarity2 > image_threshold:
-        if similarity1 > word_threshold: 
+        if similarity1 > word_threshold:
             # print(f"Finished comparison bewteen {namelst[i]} and {namelst[j]}")
             return [namelst[i], namelst[j]]
 
@@ -297,9 +349,12 @@ def article_search_by_words(rootfolder, keystring, cutthreshold, img_output):
             arr.append(os.path.join(root, filename))
     print(f"Total number of files: {len(arr)}")
 
-    reslst = []  # desired filepath
-    allreslst = []  # all path for all files
-    allabslst = []  # all path for all extracted information from all files
+    reslst = []  # desired (filtered) filepath based on keyword search
+    allreslst = []  # path for all files in the designated folder
+    allabslst = []  # extracted abstract information from all files
+    alltextlst = []  # extracted full text information from all files
+    alltitlelst = []  # extracted title information from all files
+    renamecnt = []
 
     brelst = np.linspace(10, 100, 10)
 
@@ -315,7 +370,7 @@ def article_search_by_words(rootfolder, keystring, cutthreshold, img_output):
                 brkcnt += 1
 
             result = pool.apply_async(
-                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold, img_output))
+                process_pdf, (xpath, sepkeystrig, xordef, cutthreshold, img_output, rootfolder))
             results.append(result)
 
             cnt += 1
@@ -323,10 +378,13 @@ def article_search_by_words(rootfolder, keystring, cutthreshold, img_output):
         # Retrieve the results from the multiprocessing tasks
         for result in results:
             reslst.extend(result.get()[0])
-            allreslst.extend(result.get()[3])
-            allabslst.extend(result.get()[4])
+            allreslst.extend(result.get()[5])
+            allabslst.extend(result.get()[6])
+            alltextlst.extend(result.get()[7])
+            alltitlelst.extend(result.get()[8])
+            renamecnt.extend(result.get()[10])
 
-    return [reslst, allreslst, allabslst]
+    return [reslst, allreslst, allabslst, alltextlst, alltitlelst, renamecnt]
 
 
 def open_pdf_file(file_path):
@@ -340,7 +398,7 @@ def open_pdf_file(file_path):
         print("Unsupported operating system.")
 
 
-def generate_json(allpath, allabstract, filename="loaddata.json"):
+def generate_json(allpath, allabstract, alltext, alltitle, renamecnt, filename="loaddata.json"):
     # remove old database
     try:
         os.remove(filename)
@@ -350,14 +408,17 @@ def generate_json(allpath, allabstract, filename="loaddata.json"):
         print(f"An error occurred: {e}\nTraceback details:\n{tb}")
 
     data = {
-        "path": allpath,
-        "abstract": allabstract
+        "the_path": allpath,
+        "art_title": alltitle,
+        "this_abstract": allabstract,
+        "full_content": alltext
     }
 
     with open(filename, "w") as json_file:
         json.dump(data, json_file)
 
     print(f"=== JSON database is generated (length={len(allpath)})===")
+    print(f"=== Total number of {sum(renamecnt)} files have been renamed ===")
 
 
 def delete_files(file_paths):
