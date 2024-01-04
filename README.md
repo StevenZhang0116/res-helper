@@ -20,7 +20,7 @@ It is highly recommended to run the code in a [conda] environment for optimal ve
 ```
 conda create -n "testpdf" python=3.9.0
 python -m pip install -r requirements.txt
-python article_search.py
+python article_search.py --index 0 --key "reinforcement learning" --ioindex 1
 ```
 
 ****
