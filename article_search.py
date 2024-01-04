@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    try: 
+    try:
         if index == 0:
             file_name = "loaddata.json"
             file_path = os.path.join(os.getcwd(), file_name)
@@ -101,10 +101,12 @@ if __name__ == "__main__":
 
                 resultlist = keywordresult
                 # check
-                assert len(allresult) == len(allabstract) == len(alltext) == len(alltitle)
+                assert len(allresult) == len(
+                    allabstract) == len(alltext) == len(alltitle)
 
                 if databaseindex == 1:
-                    generate_json(allresult, allabstract, alltext, alltitle, renamecnt)
+                    generate_json(allresult, allabstract,
+                                  alltext, alltitle, renamecnt)
 
             elif ioindex == 1:
                 print("== Use database result ==")
@@ -115,8 +117,9 @@ if __name__ == "__main__":
 
                     with open(file_path, "r") as json_file:
                         data = json.load(json_file)
-                        allpath = data["path"]
-                        allabstract = data["abstract"]
+                        # make sure the index is consistent with [generate_json] function in article_search_helper.py
+                        allpath = data["the_path"]
+                        allabstract = data["this_abstract"]
                         print(f"Total number of files: {len(allpath)}")
                         # searching over list is efficient, so parallel computation is not needed
                         for i in range(len(allpath)):
@@ -154,10 +157,10 @@ if __name__ == "__main__":
         running_time = end_time - start_time
         print(f"Program running time: {int(running_time)}s")
 
-    # user interrupt 
+    # user interrupt
     except KeyboardInterrupt:
         print("Interrupted by user")
 
-    finally: 
+    finally:
         # Delete cache folder
         delete_pycache(os.getcwd())
