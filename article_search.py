@@ -14,7 +14,7 @@
 import warnings
 import scipy
 import argparse
-from article_search_helper import *
+from helper import *
 
 if __name__ == "__main__":
     warnings.filterwarnings("ignore")
