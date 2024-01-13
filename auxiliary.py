@@ -1,44 +1,42 @@
-# auxiliary function for article search
-
-from multiprocessing import Pool
-from pdfminer3.layout import LAParams, LTTextBox
-from pdfminer3.pdfpage import PDFPage
-from pdfminer3.pdfinterp import PDFResourceManager
-from pdfminer3.pdfinterp import PDFPageInterpreter
-from pdfminer3.converter import PDFPageAggregator
-from pdfminer3.converter import TextConverter
-from sklearn.feature_extraction.text import TfidfVectorizer
-from pdf2image import convert_from_path
-from PIL import Image
-from skimage.metrics import structural_similarity as ssim
-from datetime import datetime
-from unicodedata import normalize
-from pdfrw import PdfReader
-
-import shutil
-import fitz
-import traceback
+# Standard Library Imports
 import io
-import re
-import os
-import fnmatch
-import time
-import numpy as np
-import sys
-import subprocess
-import platform
-import string
-import nltk
-import matplotlib.pyplot as plt
-import tensorflow_hub as hub
-import concurrent.futures
 import json
-import functools
-import fnmatch
+import os
+import random
+import re
+import shutil
+import string
+import subprocess
+import sys
 import threading
 import time
+import traceback
+from datetime import datetime
+from multiprocessing import Pool
+from unicodedata import normalize
+
+# Third-Party Library Imports
 import cv2
-import random
+import fitz  # PyMuPDF
+import matplotlib.pyplot as plt
+import nltk
+import numpy as np
+import tensorflow_hub as hub
+from PIL import Image
+from pdf2image import convert_from_path
+from pdfrw import PdfReader
+from skimage.metrics import structural_similarity as ssim
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+# PDF Processing Related Imports
+from pdfminer3.converter import PDFPageAggregator, TextConverter
+from pdfminer3.layout import LAParams, LTTextBox
+from pdfminer3.pdfinterp import PDFPageInterpreter, PDFResourceManager
+from pdfminer3.pdfpage import PDFPage
+
+# Concurrent Execution
+import concurrent.futures
+
 
 # inspired from: https://stackoverflow.com/questions/8897593/how-to-compute-the-similarity-between-two-text-documents
 stemmer = nltk.stem.porter.PorterStemmer()
