@@ -14,6 +14,10 @@ import traceback
 from datetime import datetime
 from multiprocessing import Pool
 from unicodedata import normalize
+import fnmatch
+import platform
+import functools
+import argparse
 
 # Third-Party Library Imports
 import cv2
@@ -109,6 +113,8 @@ def breakpt_gen():
 
     return lst
 
+def replace_spaces_with_underscores(input_string):
+    return input_string.replace(" ", "_")
 
 def renameFileToPDFTitle(fullName, path):
     try:
@@ -119,6 +125,7 @@ def renameFileToPDFTitle(fullName, path):
         # Remove surrounding brackets that some pdf titles have
         newName = newName.strip('()') + '.pdf'
         newName = newName.replace("\\", "").replace("/", "")
+        newName = replace_spaces_with_underscores(newName)
         newFullName = os.path.join(path, newName)
         os.rename(fullName, newFullName)
         return [newFullName, newName, 1]
@@ -258,3 +265,8 @@ def delete_pycache(directory):
         if '__pycache__' in dirs:
             print(f"Deleting: {os.path.join(root, '__pycache__')}")
             shutil.rmtree(os.path.join(root, '__pycache__'))
+
+def non_empty_string(s):
+    if not s.strip():
+        raise argparse.ArgumentTypeError("This field cannot be empty or just whitespace.")
+    return s

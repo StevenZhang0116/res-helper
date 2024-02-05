@@ -31,7 +31,8 @@ if __name__ == "__main__":
     # keywords list you want to search on;
     # for more precise result, keep it short and concise without special characters;
     # e.g. article's title, author's name, or article's keyword
-    parser.add_argument('--key', type=str, help="Keywords to search")
+    # notice that special character, including question mark (?) and dashed line (-), should not be included
+    parser.add_argument('--key', type=non_empty_string, help="Keywords to search")
 
     # which functionality to choose
     # 0: search content &/ (re)create database
@@ -55,6 +56,9 @@ if __name__ == "__main__":
 
     # Parse the arguments
     args = parser.parse_args()
+
+    if args.index == 0 and (args.key is None or not args.key.strip()):
+        parser.error("--key is required when --index is 0.")
 
     # Assigning values from arguments
     rootfolder = args.rootfolder

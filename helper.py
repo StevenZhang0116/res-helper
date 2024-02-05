@@ -1,5 +1,3 @@
-# core helper function for article search
-
 from auxiliary import *
 
 # process the pdf file
@@ -194,3 +192,4 @@ def article_search_by_words(rootfolder, keystring, cutthreshold, img_output):
             renamecnt.extend(result.get()[10])
 
     return [reslst, allreslst, allabslst, alltextlst, alltitlelst, renamecnt]
+
