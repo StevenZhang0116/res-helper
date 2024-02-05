@@ -15,7 +15,24 @@ def run_command():
     if index == "0":
         command.extend(["--ioindex", ioindex, "--databaseindex", databaseindex, "--imgout", imgout])
     
-    subprocess.run(command)
+    # code could run recursively
+    subprocess.Popen(command)
+
+def create_label_entry(frame, label_text, variable):
+    row_frame = ttk.Frame(frame)
+    row_frame.pack(fill=tk.X, pady=5)
+    ttk.Label(row_frame, text=label_text, background=frame_color, font=('Verdana', 14)).pack(side=tk.LEFT)
+    ttk.Entry(row_frame, textvariable=variable, font=('Verdana', 14)).pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
+
+def create_option_menu(frame, label_text, variable, options):
+    row_frame = ttk.Frame(frame)
+    row_frame.pack(fill=tk.X, pady=5)
+    ttk.Label(row_frame, text=label_text, background=frame_color, font=('Verdana', 14)).pack(side=tk.LEFT)
+    ttk.OptionMenu(row_frame, variable, variable.get(), *options).pack(side=tk.LEFT, padx=10)
+
+def quit_application():
+    root.destroy()
+
     
 root = tk.Tk()
 root.title("Document Handling Interface")
@@ -59,18 +76,6 @@ cb_ioindex_var = tk.StringVar(value="1")
 cb_databaseindex_var = tk.StringVar(value="0")
 e_imgout_var = tk.StringVar(value="image_save/")
 
-def create_label_entry(frame, label_text, variable):
-    row_frame = ttk.Frame(frame)
-    row_frame.pack(fill=tk.X, pady=5)
-    ttk.Label(row_frame, text=label_text, background=frame_color, font=('Verdana', 14)).pack(side=tk.LEFT)
-    ttk.Entry(row_frame, textvariable=variable, font=('Verdana', 14)).pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
-
-def create_option_menu(frame, label_text, variable, options):
-    row_frame = ttk.Frame(frame)
-    row_frame.pack(fill=tk.X, pady=5)
-    ttk.Label(row_frame, text=label_text, background=frame_color, font=('Verdana', 14)).pack(side=tk.LEFT)
-    ttk.OptionMenu(row_frame, variable, variable.get(), *options).pack(side=tk.LEFT, padx=10)
-
 create_label_entry(center_frame, "Root Folder:", e_rootfolder_var)
 create_label_entry(center_frame, "Keywords:", e_key_var)
 create_label_entry(center_frame, "Image Output Folder:", e_imgout_var)
@@ -83,5 +88,7 @@ for label, var, options in options_list:
     create_option_menu(center_frame, label, var, options)
 
 ttk.Button(center_frame, text="Run Command", command=run_command).pack(pady=10)
+
+ttk.Button(center_frame, text="Quit", command=quit_application, style='TButton').pack(pady=10)
 
 root.mainloop()
