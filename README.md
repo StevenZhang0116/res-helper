@@ -18,9 +18,15 @@ This repository is consistently updated with succinct scripts (validated in Pyth
 
 * Current Drawback: The setup of a relatively high cut-off threshold for comparing similarity significantly increases the likelihood that the code will fail to identify identical articles published under different entities (e.g., arXiv, other journals, or conferences) or in various versions.
 
-It is highly recommended to run the code in a [conda] environment for optimal version control. To use, simply execute the following commands:
+It is highly recommended to run the code in a [conda] environment for optimal version control. To use, simply execute: 
 ```
 conda create -n "testpdf" python=3.9.0
 python -m pip install -r requirements.txt
 python article_search.py --index 0 --key "reinforcement learning" --ioindex 1
 ```
+
+If want to use UI, simply execute: 
+```
+python ui.py
+```
+and choose functionalities from the displayed screen.  
