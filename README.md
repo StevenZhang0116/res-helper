@@ -12,11 +12,9 @@ This repository is consistently updated with succinct scripts (validated in Pyth
 
 * Functions of image comparison are included, but hard to be implemented in large-scale. 
 
-* [testpaper]: include several arbitrarily chosen academic literatures for testing purposes.
+* The setup of a relatively high cut-off threshold for comparing similarity significantly increases the likelihood that the code will fail to identify identical articles published under different entities (e.g., arXiv, other journals, or conferences) or in various versions.
 
-* [loaddata.json]: a sample database.
-
-* Current Drawback: The setup of a relatively high cut-off threshold for comparing similarity significantly increases the likelihood that the code will fail to identify identical articles published under different entities (e.g., arXiv, other journals, or conferences) or in various versions.
+* The script exhibits inadequate handling of edge cases and exceptions related to atypical PDF formats, resulting in uncertain performance across various scenarios. Nonetheless, it demonstrates satisfactory performance in most local tests.
 
 It is highly recommended to run the code in a [conda] environment for optimal version control. To use, simply execute: 
 ```
