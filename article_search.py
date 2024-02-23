@@ -115,7 +115,10 @@ if __name__ == "__main__":
 
             elif ioindex == 1:
                 print("== Use database result ==")
+                san1 = time.time()
+
                 # keyword search demo, but using pregenerated database
+                # no need to use multithreading, since already efficient enough
                 try:
                     resultlist = []
                     sepkeystrig = splitkey(key)
@@ -134,6 +137,9 @@ if __name__ == "__main__":
 
                 except Exception as e:
                     print(e)
+
+                san2 = time.time()
+                print(f"Sanity Check: {san2-san1}s")
 
             # whether to open the selected files
             openindex = input(
